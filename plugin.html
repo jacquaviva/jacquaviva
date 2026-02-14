@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Tagger — Front Plugin</title>
+  <script src="https://dl.frontapp.com/libs/frontjs.min.js"></script>
+  <style>
+    /* ── Reset & Base ───────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0F1117;
+      --surface:   #1A1D27;
+      --surface2:  #242836;
+      --border:    #2E3345;
+      --text:      #E2E4EA;
+      --text-dim:  #8B8FA3;
+      --accent:    #5B8DEF;
+      --accent-glow: rgba(91,141,239,.25);
+      --green:     #3DDC84;
+      --green-glow: rgba(61,220,132,.18);
+      --amber:     #FFB547;
+      --amber-glow: rgba(255,181,71,.18);
+      --red:       #EF5B5B;
+      --red-glow:  rgba(239,91,91,.18);
+      --radius:    10px;
+      --font:      'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    /* ── Typography ─────────────────────────────────────── */
+    h1 { font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+    h2 { font-size: 13px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+    h3 { font-size: 13px; font-weight: 600; }
+
+    /* ── Layout helpers ─────────────────────────────────── */
+    .stack    { display: flex; flex-direction: column; gap: 12px; }
+    .row      { display: flex; align-items: center; gap: 8px; }
+    .between  { justify-content: space-between; }
+    .wrap     { flex-wrap: wrap; }
+    .gap-4    { gap: 4px; }
+    .gap-6    { gap: 6px; }
+    .gap-16   { gap: 16px; }
+    .mt-4     { margin-top: 4px; }
+    .mt-8     { margin-top: 8px; }
+    .mt-12    { margin-top: 12px; }
+    .flex-1   { flex: 1; }
+
+    /* ── Cards ──────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .card--highlight {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 20px var(--accent-glow);
+    }
+
+    /* ── Badges ─────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600;
+      padding: 3px 8px; border-radius: 20px;
+      white-space: nowrap;
+    }
+    .badge--accent  { background: var(--accent-glow); color: var(--accent); }
+    .badge--green   { background: var(--green-glow);  color: var(--green);  }
+    .badge--amber   { background: var(--amber-glow);  color: var(--amber);  }
+    .badge--red     { background: var(--red-glow);    color: var(--red);    }
+    .badge--muted   { background: var(--surface2);    color: var(--text-dim); }
+
+    /* ── Buttons ────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      font-family: var(--font); font-size: 12px; font-weight: 600;
+      padding: 8px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); cursor: pointer;
+      transition: all .15s ease;
+    }
+    .btn:hover { background: var(--border); }
+    .btn:active { transform: scale(.97); }
+    .btn--primary {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+    .btn--primary:hover { background: #4a7de0; }
+    .btn--sm { padding: 5px 10px; font-size: 11px; }
+    .btn--danger { color: var(--red); }
+    .btn--danger:hover { background: var(--red-glow); }
+    .btn--green { color: var(--green); }
+    .btn--green:hover { background: var(--green-glow); }
+
+    /* ── Inputs ─────────────────────────────────────────── */
+    input[type="text"], textarea {
+      width: 100%;
+      font-family: var(--font); font-size: 12px;
+      padding: 8px 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); outline: none;
+      transition: border-color .15s;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+
+    /* ── Keyword chips ──────────────────────────────────── */
+    .chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 11px; padding: 2px 7px 2px 8px;
+      border-radius: 4px;
+      background: var(--surface2); color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+    .chip__x {
+      cursor: pointer; font-size: 13px; line-height: 1;
+      color: var(--text-dim); margin-left: 2px;
+    }
+    .chip__x:hover { color: var(--red); }
+
+    /* ── Dividers ───────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+    /* ── Status dot ─────────────────────────────────────── */
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      display: inline-block; flex-shrink: 0;
+    }
+    .dot--green { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+    .dot--amber { background: var(--amber); box-shadow: 0 0 6px var(--amber-glow); }
+    .dot--red   { background: var(--red);   box-shadow: 0 0 6px var(--red-glow);   }
+    .dot--muted { background: var(--text-dim); }
+
+    /* ── Match highlight ────────────────────────────────── */
+    .match-text {
+      font-size: 12px; color: var(--text-dim);
+      padding: 8px 10px; border-radius: 6px;
+      background: var(--surface2); line-height: 1.6;
+    }
+    .match-text mark {
+      background: var(--amber-glow); color: var(--amber);
+      padding: 1px 3px; border-radius: 3px;
+    }
+
+    /* ── Log area ───────────────────────────────────────── */
+    .log {
+      font-size: 11px; color: var(--text-dim);
+      max-height: 120px; overflow-y: auto;
+      padding: 8px; border-radius: 6px;
+      background: var(--surface2);
+    }
+    .log p { margin-bottom: 3px; }
+    .log .time { color: var(--accent); font-family: monospace; font-size: 10px; }
+
+    /* ── Skeleton loading ───────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px; height: 14px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── Confidence bar ─────────────────────────────────── */
+    .conf-bar { height: 4px; border-radius: 2px; background: var(--surface2); overflow: hidden; }
+    .conf-bar__fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+
+    /* ── Tabs ────────────────────────────────────────────── */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    .tab {
+      padding: 8px 14px; font-size: 12px; font-weight: 600;
+      color: var(--text-dim); cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab--active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Toggle switch ──────────────────────────────────── */
+    .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle__track {
+      position: absolute; inset: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+    .toggle__track::after {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--text-dim);
+      top: 2px; left: 2px;
+      transition: transform .2s, background .2s;
+    }
+    .toggle input:checked + .toggle__track {
+      background: var(--accent); border-color: var(--accent);
+    }
+    .toggle input:checked + .toggle__track::after {
+      transform: translateX(16px); background: #fff;
+    }
+
+    /* ── Animations ─────────────────────────────────────── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn .25s ease forwards; }
+
+    /* ── Scrollbar ──────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Hidden ─────────────────────────────────────────── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════════════════ -->
+  <div class="row between" style="margin-bottom: 14px;">
+    <div class="row gap-6">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      <h1>Smart Tagger</h1>
+    </div>
+    <span class="badge badge--muted" id="statusBadge">
+      <span class="dot dot--muted"></span> No conversation
+    </span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TABS
+       ═══════════════════════════════════════════════════════ -->
+  <div class="tabs">
+    <div class="tab tab--active" data-tab="analysis" onclick="switchTab('analysis')">Analysis</div>
+    <div class="tab" data-tab="rules" onclick="switchTab('rules')">Rules</div>
+    <div class="tab" data-tab="log" onclick="switchTab('log')">Log</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB: ANALYSIS
+       ═══════════════════════════════════════════════════════ -->
+  <div id="tab-analysis" class="stack">
+
+    <!-- Waiting state -->
+    <div id="waitingState" class="card" style="text-align:center; padding:28px 14px;">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="1.5" style="margin-bottom:8px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      <p style="color:var(--text-dim); margin-top:4px;">Select a conversation in Front to analyze</p>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loadingState" class="card hidden">
+      <div class="stack gap-6">
+        <div class="skeleton" style="width:70%;"></div>
+        <div class="skeleton" style="width:90%;"></div>
+        <div class="skeleton" style="width:50%;"></div>
+      </div>
+    </div>
+
+    <!-- Result state -->
+    <div id="resultState" class="hidden stack">
+
+      <!-- Detected tags card -->
+      <div class="card card--highlight fade-in" id="detectedCard">
+        <div class="row between" style="margin-bottom: 8px;">
+          <h3>Detected Topics</h3>
+          <span class="badge badge--green" id="matchCount">0 matches</span>
+        </div>
+        <div id="detectedTags" class="row wrap gap-4"></div>
+        <div id="matchExcerpt" class="match-text mt-8 hidden"></div>
+      </div>
+
+      <!-- Confidence card -->
+      <div class="card fade-in" style="animation-delay:.08s;">
+        <div class="row between" style="margin-bottom: 6px;">
+          <span style="font-size:12px; color:var(--text-dim);">Confidence</span>
+          <span id="confPct" style="font-size:12px; font-weight:600;"></span>
+        </div>
+        <div class="conf-bar">
+          <div class="conf-bar__fill" id="confFill" style="width:0%;"></div>
+        </div>
+      </div>
+
+      <!-- Actions card -->
+      <div class="card fade-in" style="animation-delay:.15s;">
+        <h3 style="margin-bottom: 8px;">Quick Actions</h3>
+        <div class="stack gap-6">
+          <button class="btn btn--primary" id="btnApplyTag" onclick="applyTagAndDraft()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply Tag &amp; Draft Reply
+          </button>
+          <button class="btn btn--green btn--sm" id="btnDraftOnly" onclick="draftReplyOnly()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Draft Reply Only
+          </button>
+          <div class="row gap-6">
+            <button class="btn btn--sm" id="btnCorrect" onclick="feedbackCorrect()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+              Correct
+            </button>
+            <button class="btn btn--sm btn--danger" id="btnWrong" onclick="feedbackWrong()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M10 15V19a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z"/><path d="M17 2h3a2 2 0 012 2v7a2 2 0 01-2 2h-3"/></svg>
+              Wrong
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- No match state -->
+      <div id="noMatchState" class="card hidden" style="text-align:center; padding:20px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="1.5" style="margin-bottom:6px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <p style="color:var(--text-dim); margin-top:4px;">No matching rules for this conversation</p>
+        <button class="btn btn--sm mt-8" onclick="switchTab('rules')">Edit Rules →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB: RULES
+       ═══════════════════════════════════════════════════════ -->
+  <div id="tab-rules" class="stack hidden">
+
+    <div class="row between">
+      <h2 style="margin:0;">Tagging Rules</h2>
+      <button class="btn btn--sm btn--primary" onclick="showAddRule()">+ Add Rule</button>
+    </div>
+
+    <!-- Add / edit rule form -->
+    <div id="ruleForm" class="card hidden stack">
+      <input id="ruleTag"      type="text" placeholder="Tag name (e.g. Rebooking)" />
+      <input id="ruleKeywords" type="text" placeholder="Keywords, comma-separated (e.g. rebook, reschedule, change flight)" />
+      <textarea id="ruleTemplate" placeholder="Reply template (use {name} for recipient name)"></textarea>
+      <div class="row between">
+        <div class="row gap-4">
+          <label class="toggle">
+            <input type="checkbox" id="ruleAutoTag" checked />
+            <span class="toggle__track"></span>
+          </label>
+          <span style="font-size:11px; color:var(--text-dim);">Auto-tag</span>
+          <label class="toggle" style="margin-left:8px;">
+            <input type="checkbox" id="ruleAutoDraft" checked />
+            <span class="toggle__track"></span>
+          </label>
+          <span style="font-size:11px; color:var(--text-dim);">Auto-draft</span>
+        </div>
+      </div>
+      <div class="row gap-6">
+        <button class="btn btn--primary btn--sm flex-1" onclick="saveRule()">Save</button>
+        <button class="btn btn--sm" onclick="cancelRule()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Rule list -->
+    <div id="ruleList" class="stack gap-6"></div>
+
+    <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">
+      💡 Rules match keywords in the email subject &amp; body. Feedback makes matching smarter over time (learned keywords get higher weight).
+    </p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB: LOG
+       ═══════════════════════════════════════════════════════ -->
+  <div id="tab-log" class="stack hidden">
+    <h2>Activity Log</h2>
+    <div id="logArea" class="log">
+      <p style="color:var(--text-dim);">No activity yet.</p>
+    </div>
+    <button class="btn btn--sm" onclick="clearLog()">Clear log</button>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       JAVASCRIPT
+       ═══════════════════════════════════════════════════════ -->
+  <script>
+    // ─── STATE ──────────────────────────────────────────
+    let currentContext   = null;
+    let latestMessageId  = null;
+    let latestSubject    = '';
+    let latestBody       = '';
+    let recipientName    = '';
+    let currentMatches   = [];   // [{ ruleIndex, score, matchedKeywords }]
+    let editingRuleIdx   = -1;
+
+    // ─── STORAGE HELPERS (localStorage) ─────────────────
+    const STORAGE_KEY = 'front_smart_tagger';
+
+    function loadData () {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (_) {}
+      return null;
+    }
+
+    function saveData (data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function getState () {
+      const saved = loadData();
+      if (saved && saved.rules) return saved;
+      // Default state with the Rebooking rule pre-loaded
+      return {
+        rules: [
+          {
+            tag:        'Rebooking',
+            keywords:   ['rebook', 'rebooking', 'reschedule', 'change flight', 'change my flight', 'different flight', 'new flight', 'move my flight', 'switch flight', 'alter booking', 'modify booking', 'change booking', 'change date', 'change time'],
+            template:   'Hi {name},\n\nThank you for reaching out about rebooking your flight.\n\nWe'd be happy to help you with this change. To process your rebooking, we'll need the following details:\n\n• Your current booking reference number\n• Your preferred new travel date(s)\n• Any seating or class preferences\n\nPlease note that rebooking may be subject to fare differences and/or a change fee depending on your ticket type.\n\nOnce we have these details, we'll get back to you with available options right away.\n\nBest regards',
+            autoTag:    true,
+            autoDraft:  true,
+            learned:    []   // extra keywords added from feedback
+          }
+        ],
+        log: []
+      };
+    }
+
+    let state = getState();
+
+    // ─── LOGGING ────────────────────────────────────────
+    function addLog (msg) {
+      const now = new Date();
+      const ts  = now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      state.log.unshift({ ts, msg });
+      if (state.log.length > 100) state.log.length = 100;
+      saveData(state);
+      renderLog();
+    }
+
+    function renderLog () {
+      const el = document.getElementById('logArea');
+      if (!state.log.length) {
+        el.innerHTML = '<p style="color:var(--text-dim);">No activity yet.</p>';
+        return;
+      }
+      el.innerHTML = state.log.map(l =>
+        `<p><span class="time">${l.ts}</span>  ${l.msg}</p>`
+      ).join('');
+    }
+    function clearLog () { state.log = []; saveData(state); renderLog(); }
+
+    // ─── FRONT CONTEXT ─────────────────────────────────
+    Front.contextUpdates.subscribe(context => {
+      currentContext = context;
+      updateStatusBadge(context);
+
+      if (context.type === 'singleConversation') {
+        analyzeConversation(context);
+      } else {
+        showWaiting();
+      }
+    });
+
+    function updateStatusBadge (ctx) {
+      const el = document.getElementById('statusBadge');
+      if (!ctx || ctx.type === 'noConversation') {
+        el.innerHTML = '<span class="dot dot--muted"></span> No conversation';
+      } else if (ctx.type === 'singleConversation') {
+        el.innerHTML = '<span class="dot dot--green"></span> Connected';
+      } else {
+        el.innerHTML = '<span class="dot dot--amber"></span> Multi-select';
+      }
+    }
+
+    // ─── ANALYZE ────────────────────────────────────────
+    async function analyzeConversation (ctx) {
+      showLoading();
+
+      try {
+        // Get conversation details
+        const conv = ctx.conversation;
+        latestSubject = conv.subject || '';
+        recipientName = (conv.recipient && conv.recipient.name) ? conv.recipient.name : '';
+
+        // Fetch messages
+        const resp = await ctx.listMessages();
+        if (resp.results && resp.results.length > 0) {
+          const lastMsg = resp.results[resp.results.length - 1];
+          latestMessageId = lastMsg.id;
+          latestBody = lastMsg.content ? lastMsg.content.body || '' : '';
+          // Strip HTML tags for matching
+          latestBody = stripHtml(latestBody);
+        } else {
+          latestMessageId = null;
+          latestBody = '';
+        }
+
+        // Run rules
+        currentMatches = matchRules(latestSubject, latestBody);
+
+        if (currentMatches.length > 0) {
+          showResults(currentMatches);
+          addLog(`Analyzed: "${truncate(latestSubject, 40)}" → ${currentMatches.length} match(es)`);
+        } else {
+          showNoMatch();
+          addLog(`Analyzed: "${truncate(latestSubject, 40)}" → no match`);
+        }
+      } catch (err) {
+        console.error('Smart Tagger error:', err);
+        addLog(`Error: ${err.message}`);
+        showNoMatch();
+      }
+    }
+
+    function stripHtml (html) {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      return div.textContent || div.innerText || '';
+    }
+
+    function truncate (str, n) {
+      return str.length > n ? str.slice(0, n) + '…' : str;
+    }
+
+    // ─── MATCHING ENGINE ────────────────────────────────
+    function matchRules (subject, body) {
+      const text = (subject + ' ' + body).toLowerCase();
+      const results = [];
+
+      state.rules.forEach((rule, idx) => {
+        const allKeywords = [...rule.keywords, ...(rule.learned || [])];
+        let matchedKw = [];
+        let score = 0;
+
+        allKeywords.forEach(kw => {
+          const kwLower = kw.toLowerCase().trim();
+          if (!kwLower) return;
+          // Check for word/phrase match
+          const regex = new RegExp('\\b' + escapeRegex(kwLower) + '\\b', 'gi');
+          const hits  = (text.match(regex) || []).length;
+          if (hits > 0) {
+            matchedKw.push(kw);
+            // Learned keywords get 1.5x weight
+            const weight = (rule.learned || []).includes(kw) ? 1.5 : 1;
+            score += hits * weight;
+          }
+        });
+
+        if (matchedKw.length > 0) {
+          // Normalize score: % of keywords matched
+          const pct = Math.min(100, Math.round((matchedKw.length / allKeywords.length) * 100 + score * 3));
+          results.push({ ruleIndex: idx, score: pct, matchedKeywords: matchedKw });
+        }
+      });
+
+      results.sort((a, b) => b.score - a.score);
+      return results;
+    }
+
+    function escapeRegex (s) {
+      return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // ─── UI STATE SWITCHES ──────────────────────────────
+    function showWaiting ()  { hide('loadingState'); hide('resultState'); show('waitingState'); }
+    function showLoading ()  { hide('waitingState'); hide('resultState'); show('loadingState'); }
+    function showNoMatch ()  {
+      hide('waitingState'); hide('loadingState'); show('resultState');
+      hide('detectedCard'); document.getElementById('detectedCard').nextElementSibling.classList.add('hidden');
+      document.getElementById('detectedCard').nextElementSibling.nextElementSibling.classList.add('hidden');
+      show('noMatchState');
+    }
+    function showResults (matches) {
+      hide('waitingState'); hide('loadingState'); show('resultState');
+      show('detectedCard');
+      hide('noMatchState');
+
+      // Show action + confidence cards
+      const cards = document.querySelectorAll('#resultState > .card.fade-in');
+      cards.forEach(c => c.classList.remove('hidden'));
+
+      const bestMatch = matches[0];
+      const rule = state.rules[bestMatch.ruleIndex];
+
+      // Tags badges
+      const tagsEl = document.getElementById('detectedTags');
+      tagsEl.innerHTML = matches.map(m => {
+        const r = state.rules[m.ruleIndex];
+        return `<span class="badge badge--accent">🏷️ ${r.tag}</span>`;
+      }).join('');
+
+      // Match count
+      document.getElementById('matchCount').textContent = matches.length + ' match' + (matches.length > 1 ? 'es' : '');
+
+      // Excerpt with highlights
+      const excerptEl = document.getElementById('matchExcerpt');
+      const allKws = matches.flatMap(m => m.matchedKeywords);
+      if (latestBody) {
+        let snippet = truncate(latestSubject + ' — ' + latestBody, 280);
+        allKws.forEach(kw => {
+          const re = new RegExp('(' + escapeRegex(kw) + ')', 'gi');
+          snippet = snippet.replace(re, '<mark>$1</mark>');
+        });
+        excerptEl.innerHTML = snippet;
+        show('matchExcerpt');
+      } else {
+        hide('matchExcerpt');
+      }
+
+      // Confidence
+      const pct = bestMatch.score;
+      document.getElementById('confPct').textContent = pct + '%';
+      const fill = document.getElementById('confFill');
+      fill.style.width = '0%';
+      fill.style.background = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--red)';
+      requestAnimationFrame(() => { fill.style.width = pct + '%'; });
+
+      // Button label
+      document.getElementById('btnApplyTag').innerHTML =
+        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>` +
+        `Apply "${rule.tag}" Tag & Draft Reply`;
+    }
+
+    function show (id) { document.getElementById(id).classList.remove('hidden'); }
+    function hide (id) { document.getElementById(id).classList.add('hidden'); }
+
+    // ─── ACTIONS ────────────────────────────────────────
+    async function applyTagAndDraft () {
+      if (!currentMatches.length || !currentContext) return;
+      const bestMatch = currentMatches[0];
+      const rule = state.rules[bestMatch.ruleIndex];
+
+      try {
+        // Apply tag using Front Plugin SDK
+        await currentContext.addTag(rule.tag);
+        addLog(`✅ Tagged conversation with "${rule.tag}"`);
+      } catch (err) {
+        addLog(`⚠️ Could not add tag "${rule.tag}" — you may need to create this tag in Front first. Error: ${err.message}`);
+      }
+
+      await createDraftFromRule(rule);
+    }
+
+    async function draftReplyOnly () {
+      if (!currentMatches.length || !currentContext) return;
+      const rule = state.rules[currentMatches[0].ruleIndex];
+      await createDraftFromRule(rule);
+    }
+
+    async function createDraftFromRule (rule) {
+      try {
+        const body = rule.template.replace(/\{name\}/g, recipientName || 'there');
+
+        if (latestMessageId) {
+          await currentContext.createDraft({
+            content: { body: body, type: 'text' },
+            replyOptions: { type: 'reply', originalMessageId: latestMessageId }
+          });
+        } else {
+          await currentContext.createDraft({
+            content: { body: body, type: 'text' }
+          });
+        }
+
+        addLog(`📝 Draft reply created for "${rule.tag}" rule`);
+        flashButton('btnApplyTag', 'Done ✓');
+      } catch (err) {
+        addLog(`⚠️ Draft error: ${err.message}`);
+      }
+    }
+
+    function flashButton (id, text) {
+      const btn = document.getElementById(id);
+      const orig = btn.innerHTML;
+      btn.textContent = text;
+      btn.disabled = true;
+      setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1800);
+    }
+
+    // ─── FEEDBACK (Learning) ────────────────────────────
+    function feedbackCorrect () {
+      if (!currentMatches.length) return;
+      addLog('👍 Feedback: correct — reinforced current keywords');
+      flashButton('btnCorrect', '✓ Thanks!');
+    }
+
+    function feedbackWrong () {
+      if (!currentMatches.length) return;
+      // Prompt for the correct tag keywords (simple approach)
+      const input = prompt('What keyword should have been detected? (leave blank to skip)');
+      if (input && input.trim()) {
+        // Add the learned keyword to the best-matching rule or first rule
+        const idx = currentMatches[0].ruleIndex;
+        if (!state.rules[idx].learned) state.rules[idx].learned = [];
+        state.rules[idx].learned.push(input.trim().toLowerCase());
+        saveData(state);
+        addLog(`🧠 Learned new keyword "${input.trim()}" for rule "${state.rules[idx].tag}"`);
+      } else {
+        addLog('👎 Feedback: wrong — no new keyword provided');
+      }
+      flashButton('btnWrong', '✓ Noted');
+    }
+
+    // ─── TABS ───────────────────────────────────────────
+    function switchTab (name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('tab--active', t.dataset.tab === name));
+      ['analysis', 'rules', 'log'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+      });
+      if (name === 'rules') renderRules();
+      if (name === 'log') renderLog();
+    }
+
+    // ─── RULES MANAGEMENT ───────────────────────────────
+    function renderRules () {
+      const list = document.getElementById('ruleList');
+      if (!state.rules.length) {
+        list.innerHTML = '<p style="color:var(--text-dim); text-align:center;">No rules yet. Click "+ Add Rule" to create one.</p>';
+        return;
+      }
+      list.innerHTML = state.rules.map((rule, idx) => `
+        <div class="card stack gap-6">
+          <div class="row between">
+            <div class="row gap-6">
+              <span class="badge badge--accent">🏷️ ${rule.tag}</span>
+              ${rule.autoTag ? '<span class="badge badge--green" style="font-size:10px;">auto-tag</span>' : ''}
+              ${rule.autoDraft ? '<span class="badge badge--amber" style="font-size:10px;">auto-draft</span>' : ''}
+            </div>
+            <div class="row gap-4">
+              <button class="btn btn--sm" onclick="editRule(${idx})">Edit</button>
+              <button class="btn btn--sm btn--danger" onclick="deleteRule(${idx})">✕</button>
+            </div>
+          </div>
+          <div class="row wrap gap-4">
+            ${rule.keywords.map(k => `<span class="chip">${k}</span>`).join('')}
+            ${(rule.learned||[]).map(k => `<span class="chip" style="border-color:var(--green);color:var(--green);">${k} 🧠</span>`).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);white-space:pre-wrap;max-height:60px;overflow:hidden;">
+            ${truncate(rule.template, 120)}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showAddRule () {
+      editingRuleIdx = -1;
+      document.getElementById('ruleTag').value = '';
+      document.getElementById('ruleKeywords').value = '';
+      document.getElementById('ruleTemplate').value = '';
+      document.getElementById('ruleAutoTag').checked = true;
+      document.getElementById('ruleAutoDraft').checked = true;
+      show('ruleForm');
+    }
+
+    function editRule (idx) {
+      editingRuleIdx = idx;
+      const r = state.rules[idx];
+      document.getElementById('ruleTag').value = r.tag;
+      document.getElementById('ruleKeywords').value = [...r.keywords, ...(r.learned||[])].join(', ');
+      document.getElementById('ruleTemplate').value = r.template;
+      document.getElementById('ruleAutoTag').checked = r.autoTag;
+      document.getElementById('ruleAutoDraft').checked = r.autoDraft;
+      show('ruleForm');
+    }
+
+    function saveRule () {
+      const tag      = document.getElementById('ruleTag').value.trim();
+      const kwRaw    = document.getElementById('ruleKeywords').value;
+      const template = document.getElementById('ruleTemplate').value;
+      const autoTag  = document.getElementById('ruleAutoTag').checked;
+      const autoDraft= document.getElementById('ruleAutoDraft').checked;
+
+      if (!tag) return alert('Please enter a tag name.');
+      const keywords = kwRaw.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+      if (!keywords.length) return alert('Please enter at least one keyword.');
+
+      const rule = { tag, keywords, template, autoTag, autoDraft, learned: [] };
+
+      if (editingRuleIdx >= 0) {
+        state.rules[editingRuleIdx] = rule;
+        addLog(`✏️ Updated rule "${tag}"`);
+      } else {
+        state.rules.push(rule);
+        addLog(`➕ Added rule "${tag}"`);
+      }
+
+      saveData(state);
+      cancelRule();
+      renderRules();
+    }
+
+    function cancelRule () { hide('ruleForm'); editingRuleIdx = -1; }
+
+    function deleteRule (idx) {
+      if (!confirm(`Delete rule "${state.rules[idx].tag}"?`)) return;
+      addLog(`🗑️ Deleted rule "${state.rules[idx].tag}"`);
+      state.rules.splice(idx, 1);
+      saveData(state);
+      renderRules();
+    }
+
+    // ─── INIT ───────────────────────────────────────────
+    renderRules();
+    renderLog();
+  </script>
+
+</body>
+</html>
